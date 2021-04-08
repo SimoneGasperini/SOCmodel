@@ -1,6 +1,7 @@
 from collections import deque
 
 import numpy as np
+from numba import njit
 from tqdm import trange
 
 from socmodel.state import ZerosState
@@ -99,11 +100,23 @@ class Network ():
     self._history = deque(maxlen=self.W)
     self._history.append(self.sigma)
 
+    self.linksPlus = np.sum(self.C == 1)
+    self.linksMinus = np.sum(self.C == -1)
 
-  def _compute_probability (self):
 
-    signal = np.einsum('ij, j -> i', self.C, self.sigma)
-    return 1. / (1. + np.exp(-2. * self.beta * (signal - 0.5)))
+  @staticmethod
+  @njit
+  def _compute_probability (n, sigma, C, beta):
+
+    probability = np.empty(n, dtype=np.float32)
+
+    for i in range(n):
+      signal = 0
+      for j in range(n):
+        signal += C[i,j] * sigma[j]
+      probability[i] = 1. / (1. + np.exp(-2.*beta * (signal-0.5)))
+
+    return probability
 
 
   def _compute_average_activity (self, i):
@@ -112,32 +125,34 @@ class Network ():
     return np.mean(history[:,i])
 
 
-  def _compute_degPlus (self):
-
-    return np.count_nonzero(self.C == 1) / self.n
-
-
-  def _compute_degMinus (self):
-
-    return np.count_nonzero(self.C == -1) / self.n
-
-
   def _update_state (self):
 
-    probability = self._compute_probability()
+    probability = self._compute_probability(n=self.n, sigma=self.sigma, C=self.C, beta=self.beta)
     self.sigma = (np.random.rand(self.n) < probability).astype(np.int8)
 
     self._history.append(self.sigma)
 
 
-  def _add_random_link (self, i, w):
+  def _add_random_linkPlus (self, i):
 
     indices = np.where(self.C[i] == 0)[0]
     indices = indices[indices != i]
 
     if indices.size:
       j = np.random.choice(indices)
-      self.C[i,j] = w
+      self.C[i,j] = 1
+      self.linksPlus += 1
+
+
+  def _add_random_linkMinus (self, i):
+
+    indices = np.where(self.C[i] == 0)[0]
+    indices = indices[indices != i]
+
+    if indices.size:
+      j = np.random.choice(indices)
+      self.C[i,j] = -1
+      self.linksMinus += 1
 
 
   def _remove_random_link (self, i):
@@ -146,6 +161,9 @@ class Network ():
 
     if indices.size:
       j = np.random.choice(indices)
+      l = self.C[i,j]
+      if l == 1: self.linksPlus -= 1
+      if l == -1: self.linksMinus -= 1
       self.C[i,j] = 0
 
 
@@ -155,10 +173,10 @@ class Network ():
     A = self._compute_average_activity(i=i)
 
     if A == 0.:
-      self._add_random_link(i, w=1)
+      self._add_random_linkPlus(i)
 
     elif A == 1.:
-      self._add_random_link(i, w=-1)
+      self._add_random_linkMinus(i)
 
     else:
       self._remove_random_link(i)
@@ -168,6 +186,7 @@ class Network ():
 
     degPlus = np.empty(num_steps)
     degMinus = np.empty(num_steps)
+    norm = 1. / self.n
 
     for i in trange(num_steps, desc='Simulation: '):
 
@@ -176,7 +195,7 @@ class Network ():
       if (i + 1) % self.T == 0:
         self._perform_rewiring()
 
-      degPlus[i] = self._compute_degPlus()
-      degMinus[i] = self._compute_degMinus()
+      degPlus[i] = self.linksPlus * norm
+      degMinus[i] = self.linksMinus * norm
 
     return degPlus, degMinus

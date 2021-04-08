@@ -50,7 +50,8 @@ def test_probability (n, state_init, connectivity_init, beta):
                     connectivity_init=connectivity_init(),
                     beta=beta)
 
-  probability = network._compute_probability()
+  probability = network._compute_probability(n=network.n, sigma=network.sigma,
+                                             C=network.C, beta=network.beta)
   assert probability.size == n
   assert ((0. <= probability) & (probability <= 1.)).all()
 
@@ -109,6 +110,9 @@ def test_rewiring (n, state_init, connectivity_init, beta, W, steps):
     C1 = np.copy(network.C)
     network._perform_rewiring()
     C2 = np.copy(network.C)
+
+    assert network.linksPlus == np.sum(network.C == 1)
+    assert network.linksMinus == np.sum(network.C == -1)
 
     assert check_connectivity(C1)
     assert check_connectivity(C2)
