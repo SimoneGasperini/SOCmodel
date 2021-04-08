@@ -18,6 +18,7 @@ state_initializers = [ZerosState, OnesState, UniformState]
 connectivity_initializers = [ZerosConnectivity, OnesConnectivity, RandomConnectivity]
 
 
+
 @given(n                 = st.integers(min_value=1, max_value=1e3),
        state_init        = st.sampled_from(state_initializers),
        connectivity_init = st.sampled_from(connectivity_initializers),
@@ -38,49 +39,32 @@ def test_constructor (n, state_init, connectivity_init, beta, W, T, seed):
   network = Network(**params)
 
 
-@given(n                 = st.integers(min_value=1, max_value=100),
-       state_init        = st.sampled_from(state_initializers),
-       connectivity_init = st.sampled_from(connectivity_initializers),
-       beta              = st.floats(min_value=0.),)
-@settings(deadline=None)
-def test_probability (n, state_init, connectivity_init, beta):
-
-  network = Network(n=n,
-                    state_init=state_init(),
-                    connectivity_init=connectivity_init(),
-                    beta=beta)
-
-  probability = network._compute_probability(n=network.n, sigma=network.sigma,
-                                             C=network.C, beta=network.beta)
-  assert probability.size == n
-  assert ((0. <= probability) & (probability <= 1.)).all()
-
-  if beta == 0.:
-    assert (probability == 0.5).all()
-
 
 @given(n                 = st.integers(min_value=1, max_value=100),
        state_init        = st.sampled_from(state_initializers),
        connectivity_init = st.sampled_from(connectivity_initializers),
        beta              = st.floats(min_value=0.),
        W                 = st.integers(min_value=1, max_value=10),
-       steps             = st.integers(min_value=0, max_value=10),)
+       steps             = st.integers(min_value=0, max_value=100),)
 @settings(deadline=None)
-def test_statevector (n, state_init, connectivity_init, beta, W, steps):
+def test_activity_dynamics (n, state_init, connectivity_init, beta, W, steps):
 
-  network = Network(n=n,
-                    state_init=state_init(),
+  network = Network(n=n, state_init=state_init(),
                     connectivity_init=connectivity_init(),
-                    beta=beta,
-                    W=W)
+                    beta=beta, W=W)
 
-  check_state = lambda s : ((s == 0) | (s == 1)).all()
-  assert check_state(network.sigma)
+  check_state = lambda net : ((net.sigma == 0) | (net.sigma == 1)).all()
+
+  assert check_state(network)
 
   for _ in range(steps):
 
-    network._update_state()
-    assert check_state(network.sigma)
+    network.sigma, network.descendants = \
+      network._compute_new_state(n=network.n, sigma=network.sigma,
+                                 C=network.C, beta=network.beta)
+
+    assert check_state(network)
+    assert np.sum(network.sigma) == network.descendants
 
 
 @given(n                 = st.integers(min_value=1, max_value=100),
@@ -88,32 +72,26 @@ def test_statevector (n, state_init, connectivity_init, beta, W, steps):
        connectivity_init = st.sampled_from(connectivity_initializers),
        beta              = st.floats(min_value=0.),
        W                 = st.integers(min_value=1, max_value=10),
-       steps             = st.integers(min_value=0, max_value=10),)
+       steps             = st.integers(min_value=0, max_value=50),)
 @settings(deadline=None)
-def test_rewiring (n, state_init, connectivity_init, beta, W, steps):
+def test_network_evolution (n, state_init, connectivity_init, beta, W, steps):
 
-  network = Network(n=n,
-                    state_init=state_init(),
+  network = Network(n=n, state_init=state_init(),
                     connectivity_init=connectivity_init(),
-                    beta=beta,
-                    W=W)
+                    beta=beta, W=W)
 
-  def check_connectivity (C):
-    c1 = ((C == -1) | (C == 0) | (C == 1)).all()
-    c2 = (C[np.eye(n, dtype=bool)] == 0).all()
+  def check_connectivity (net):
+    c1 = ((net.C == -1) | (net.C == 0) | (net.C == 1)).all()
+    c2 = (net.C[np.eye(n, dtype=bool)] == 0).all()
     return c1 and c2
 
+  network.run(steps)
+  assert check_connectivity(network)
+
   for _ in range(steps):
 
-    network._update_state()
-
-    C1 = np.copy(network.C)
     network._perform_rewiring()
-    C2 = np.copy(network.C)
 
-    assert network.linksPlus == np.sum(network.C == 1)
-    assert network.linksMinus == np.sum(network.C == -1)
-
-    assert check_connectivity(C1)
-    assert check_connectivity(C2)
-    assert np.sum(C2 - C1) in [-1,0,1]
+    assert check_connectivity(network)
+    assert np.sum(network.C == 1) == network.linksPlus
+    assert np.sum(network.C == -1) == network.linksMinus

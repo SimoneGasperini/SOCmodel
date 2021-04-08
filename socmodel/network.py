@@ -1,4 +1,5 @@
 from collections import deque
+from random import random
 
 import numpy as np
 from numba import njit
@@ -102,35 +103,46 @@ class Network ():
 
     self.linksPlus = np.sum(self.C == 1)
     self.linksMinus = np.sum(self.C == -1)
+    self.ancestors = np.count_nonzero(self.sigma)
+    self.descendants = None
 
 
   @staticmethod
   @njit
-  def _compute_probability (n, sigma, C, beta):
+  def _compute_new_state (n, sigma, C, beta):
 
-    probability = np.empty(n, dtype=np.float32)
+    new_sigma = np.zeros(n, dtype=np.int8)
+    num_active = 0
 
     for i in range(n):
+
       signal = 0
       for j in range(n):
         signal += C[i,j] * sigma[j]
-      probability[i] = 1. / (1. + np.exp(-2.*beta * (signal-0.5)))
 
-    return probability
+      if random() < 1./ (1. + np.exp(-2.*beta * (signal-0.5))):
+        new_sigma[i] = 1
+        num_active += 1
+
+    return new_sigma, num_active
+
+
+  def _compute_branching_parameter (self):
+
+    branch_par = 0.
+
+    if self.ancestors != 0:
+      branch_par = self.descendants / self.ancestors
+
+    return branch_par
 
 
   def _compute_average_activity (self, i):
 
     history = np.array(self._history)
-    return np.mean(history[:,i])
+    A = np.mean(history[:,i])
 
-
-  def _update_state (self):
-
-    probability = self._compute_probability(n=self.n, sigma=self.sigma, C=self.C, beta=self.beta)
-    self.sigma = (np.random.rand(self.n) < probability).astype(np.int8)
-
-    self._history.append(self.sigma)
+    return A
 
 
   def _add_random_linkPlus (self, i):
@@ -184,18 +196,24 @@ class Network ():
 
   def run (self, num_steps):
 
-    degPlus = np.empty(num_steps)
-    degMinus = np.empty(num_steps)
+    degPlus = np.empty(num_steps, dtype=np.float32)
+    degMinus = np.empty(num_steps, dtype=np.float32)
+    branchPar = np.empty(num_steps, dtype=np.float32)
     norm = 1. / self.n
 
     for i in trange(num_steps, desc='Simulation: '):
 
-      self._update_state()
+      if i != 0:
+        self.ancestors = self.descendants
+      self.sigma, self.descendants = self._compute_new_state(n=self.n, sigma=self.sigma,
+                                                             C=self.C, beta=self.beta)
+      self._history.append(self.sigma)
 
       if (i + 1) % self.T == 0:
         self._perform_rewiring()
 
       degPlus[i] = self.linksPlus * norm
       degMinus[i] = self.linksMinus * norm
+      branchPar[i] = self._compute_branching_parameter()
 
-    return degPlus, degMinus
+    return degPlus, degMinus, branchPar
