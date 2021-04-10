@@ -2,14 +2,14 @@ from collections import deque
 from random import random
 
 import numpy as np
-from numba import njit
+from numba import njit, stencil
 from tqdm import trange
 
 from socmodel.state import ZerosState
 from socmodel.connectivity import ZerosConnectivity
 
 
-class Network ():
+class Network:
 
   '''
   Parameters
@@ -35,15 +35,12 @@ class Network ():
       Number of time steps to wait between each single neuron rewiring
       (it represents the time scale separation between fast neurons dynamics
       and slow change in their connectivity). It must be greater of equal than 1
-
-    seed : int, default=None
-      Random seed
   '''
 
   def __init__ (self, n=100,
                 state_init=ZerosState(),
                 connectivity_init=ZerosConnectivity(),
-                beta=1., W=1, T=1, seed=None):
+                beta=1., W=1, T=1):
 
     self.n = n
     self.state_init = state_init
@@ -51,7 +48,6 @@ class Network ():
     self.beta = beta
     self.W = W
     self.T = T
-    self.seed = seed
 
     self._check_parameters()
     self._set_initial_conditions()
@@ -93,26 +89,33 @@ class Network ():
 
   def _set_initial_conditions (self):
 
-    np.random.seed(self.seed)
-
     self.sigma = self.state_init.get(size=self.n)
     self.C = self.connectivity_init.get(shape=(self.n,self.n))
 
-    self._history = deque(maxlen=self.W)
-    self._history.append(self.sigma)
+    self.history = deque(maxlen=self.W)
+    self.history.append(self.sigma)
 
     self.linksPlus = np.sum(self.C == 1)
     self.linksMinus = np.sum(self.C == -1)
-    self.ancestors = np.count_nonzero(self.sigma)
-    self.descendants = None
+
+
+  @staticmethod
+  @stencil
+  def _compute_branching_parameter (arr):
+
+    par = 0.
+
+    if arr[-1] != 0:
+      par = arr[0] / arr[-1]
+
+    return par
 
 
   @staticmethod
   @njit
-  def _compute_new_state (n, sigma, C, beta):
+  def _compute_new_state (n, sigma, C, beta, numActive):
 
-    new_sigma = np.zeros(n, dtype=np.int8)
-    num_active = 0
+    newSigma = np.zeros(n, dtype=np.int8)
 
     for i in range(n):
 
@@ -121,25 +124,28 @@ class Network ():
         signal += C[i,j] * sigma[j]
 
       if random() < 1./ (1. + np.exp(-2.*beta * (signal-0.5))):
-        new_sigma[i] = 1
-        num_active += 1
+        newSigma[i] = 1
+        numActive += 1
 
-    return new_sigma, num_active
+    return newSigma, numActive
 
 
-  def _compute_branching_parameter (self):
+  def _evolve_state (self):
 
-    branch_par = 0.
+    numActive = 0
 
-    if self.ancestors != 0:
-      branch_par = self.descendants / self.ancestors
+    for _ in range(self.T):
 
-    return branch_par
+      self.sigma, numActive = self._compute_new_state(n=self.n, sigma=self.sigma, C=self.C,
+                                                      beta=self.beta, numActive=numActive)
+      self.history.append(self.sigma)
+
+    return numActive
 
 
   def _compute_average_activity (self, i):
 
-    history = np.array(self._history)
+    history = np.array(self.history)
     A = np.mean(history[:,i])
 
     return A
@@ -179,7 +185,7 @@ class Network ():
       self.C[i,j] = 0
 
 
-  def _perform_rewiring (self):
+  def _evolve_connectivity (self):
 
     i = np.random.randint(low=0, high=self.n)
     A = self._compute_average_activity(i=i)
@@ -194,26 +200,22 @@ class Network ():
       self._remove_random_link(i)
 
 
-  def run (self, num_steps):
+  def run (self, evolution_steps):
 
-    degPlus = np.empty(num_steps, dtype=np.float32)
-    degMinus = np.empty(num_steps, dtype=np.float32)
-    branchPar = np.empty(num_steps, dtype=np.float32)
-    norm = 1. / self.n
+    avgActive = np.empty(evolution_steps, dtype=np.float32)
+    degPlus = np.empty(evolution_steps, dtype=np.float32)
+    degMinus = np.empty(evolution_steps, dtype=np.float32)
 
-    for i in trange(num_steps, desc='Simulation: '):
+    for i in trange(evolution_steps, desc='Simulation: '):
 
-      if i != 0:
-        self.ancestors = self.descendants
-      self.sigma, self.descendants = self._compute_new_state(n=self.n, sigma=self.sigma,
-                                                             C=self.C, beta=self.beta)
-      self._history.append(self.sigma)
+      avgActive[i] = self._evolve_state()
+      self._evolve_connectivity()
+      degPlus[i] = self.linksPlus
+      degMinus[i] = self.linksMinus
 
-      if (i + 1) % self.T == 0:
-        self._perform_rewiring()
+    avgActive /= (self.T * self.n)
+    degPlus /= self.n
+    degMinus /= self.n
+    branchPar = self._compute_branching_parameter(avgActive)
 
-      degPlus[i] = self.linksPlus * norm
-      degMinus[i] = self.linksMinus * norm
-      branchPar[i] = self._compute_branching_parameter()
-
-    return degPlus, degMinus, branchPar
+    return degPlus, degMinus, branchPar, avgActive

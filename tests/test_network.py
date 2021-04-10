@@ -24,19 +24,16 @@ connectivity_initializers = [ZerosConnectivity, OnesConnectivity, RandomConnecti
        connectivity_init = st.sampled_from(connectivity_initializers),
        beta              = st.floats(min_value=0.),
        W                 = st.integers(min_value=1, max_value=1e4),
-       T                 = st.integers(min_value=1),
-       seed              = st.integers(min_value=1, max_value=2**32 - 1),)
-def test_constructor (n, state_init, connectivity_init, beta, W, T, seed):
+       T                 = st.integers(min_value=1),)
+def test_constructor (n, state_init, connectivity_init, beta, W, T):
 
   params = {'n'                 : n,
             'state_init'        : state_init(),
             'connectivity_init' : connectivity_init(),
             'beta'              : beta,
             'W'                 : W,
-            'T'                 : T,
-            'seed'              : seed
-            }
-  network = Network(**params)
+            'T'                 : T,}
+  Network(**params)
 
 
 
@@ -44,54 +41,43 @@ def test_constructor (n, state_init, connectivity_init, beta, W, T, seed):
        state_init        = st.sampled_from(state_initializers),
        connectivity_init = st.sampled_from(connectivity_initializers),
        beta              = st.floats(min_value=0.),
-       W                 = st.integers(min_value=1, max_value=10),
+       W                 = st.integers(min_value=1, max_value=100),
+       T                 = st.integers(min_value=1, max_value=100),
        steps             = st.integers(min_value=0, max_value=100),)
 @settings(deadline=None)
-def test_activity_dynamics (n, state_init, connectivity_init, beta, W, steps):
+def test_state_evolution (n, state_init, connectivity_init, beta, W, T, steps):
 
-  network = Network(n=n, state_init=state_init(),
-                    connectivity_init=connectivity_init(),
-                    beta=beta, W=W)
-
-  check_state = lambda net : ((net.sigma == 0) | (net.sigma == 1)).all()
-
-  assert check_state(network)
+  net = Network(n=n, state_init=state_init(), connectivity_init=connectivity_init(),
+                beta=beta, W=W, T=T)
 
   for _ in range(steps):
 
-    network.sigma, network.descendants = \
-      network._compute_new_state(n=network.n, sigma=network.sigma,
-                                 C=network.C, beta=network.beta)
+    numActive = net._evolve_state()
 
-    assert check_state(network)
-    assert np.sum(network.sigma) == network.descendants
+    assert ((net.sigma == 0) | (net.sigma == 1)).all()
+    assert (net.history[-1] == net.sigma).all()
+    assert (numActive / net.T) <= net.n
+
 
 
 @given(n                 = st.integers(min_value=1, max_value=100),
        state_init        = st.sampled_from(state_initializers),
        connectivity_init = st.sampled_from(connectivity_initializers),
        beta              = st.floats(min_value=0.),
-       W                 = st.integers(min_value=1, max_value=10),
-       steps             = st.integers(min_value=0, max_value=50),)
+       W                 = st.integers(min_value=1, max_value=100),
+       T                 = st.integers(min_value=1, max_value=100),
+       steps             = st.integers(min_value=0, max_value=100),)
 @settings(deadline=None)
-def test_network_evolution (n, state_init, connectivity_init, beta, W, steps):
+def test_connectivity_evolution (n, state_init, connectivity_init, beta, W, T, steps):
 
-  network = Network(n=n, state_init=state_init(),
-                    connectivity_init=connectivity_init(),
-                    beta=beta, W=W)
-
-  def check_connectivity (net):
-    c1 = ((net.C == -1) | (net.C == 0) | (net.C == 1)).all()
-    c2 = (net.C[np.eye(n, dtype=bool)] == 0).all()
-    return c1 and c2
-
-  network.run(steps)
-  assert check_connectivity(network)
+  net = Network(n=n, state_init=state_init(), connectivity_init=connectivity_init(),
+                beta=beta, W=W, T=T)
 
   for _ in range(steps):
 
-    network._perform_rewiring()
+    net._evolve_connectivity()
 
-    assert check_connectivity(network)
-    assert np.sum(network.C == 1) == network.linksPlus
-    assert np.sum(network.C == -1) == network.linksMinus
+    assert ((net.C == -1) | (net.C == 0) | (net.C == 1)).all()
+    assert (net.C[np.eye(n, dtype=bool)] == 0).all()
+    assert np.sum(net.C == 1) == net.linksPlus
+    assert np.sum(net.C == -1) == net.linksMinus
