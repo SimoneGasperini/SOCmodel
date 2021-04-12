@@ -1,4 +1,3 @@
-from collections import deque
 from random import random
 
 import numpy as np
@@ -14,40 +13,41 @@ class Network:
   '''
   Parameters
   ----------
-    n : int, default=100
-      Size of the model (number of neurons). It must be greater or equal than 1
+    n : int
+      Size of the model (number of neurons).
+      It must be greater or equal than 1
 
-    state_init : BaseState, default=ZerosState()
-      State vector initialization object
+    alpha : float
+      Temporal memory of the model.
+      It must be between 0 (no memory) and 1 (full memory)
 
-    connectivity_init : BaseConnectivity, default=ZerosConnectivity()
-      Connectivity matrix initialization object
+    beta : float
+      Inverse temperature of the model.
+      It must be greater or equal than 0
 
-    beta : float, default=1.
-      Inverse temperature of the model. It must be greater or equal than 0
-
-    W : int, default=1
-      Number of last time steps to be considered in computing the average
-      neurons activity (it represents the temporal memory window of the neurons).
+    T : int
+      Number of steps for the evolution time scale: it represents the time scale
+      separation between fast neurons dynamics (state evolution) and slow change
+      in the network topology (connectivity evolution).
       It must be greater of equal than 1
 
-    T : int, default=1
-      Number of time steps to wait between each single neuron rewiring
-      (it represents the time scale separation between fast neurons dynamics
-      and slow change in their connectivity). It must be greater of equal than 1
+    state_init : BaseState, default=ZerosState()
+      State vector initializer
+
+    connectivity_init : BaseConnectivity, default=ZerosConnectivity()
+      Connectivity matrix initializer
   '''
 
-  def __init__ (self, n=100,
+  def __init__ (self, n, alpha, beta, T,
                 state_init=ZerosState(),
-                connectivity_init=ZerosConnectivity(),
-                beta=1., W=1, T=1):
+                connectivity_init=ZerosConnectivity()):
 
-    self.n = n
-    self.state_init = state_init
+    self.n                 = n
+    self.alpha             = alpha
+    self.beta              = beta
+    self.T                 = T
+    self.state_init        = state_init
     self.connectivity_init = connectivity_init
-    self.beta = beta
-    self.W = W
-    self.T = T
 
     self._check_parameters()
     self._set_initial_conditions()
@@ -71,14 +71,11 @@ class Network:
     if not self.n >= 1:
       raise ValueError('Invalid "n" passed. "n" must be greater or equal than 1.')
 
+    if not 0. <= self.alpha <= 1.:
+      raise ValueError('Invalid "alpha" passed. "alpha" must be a float in [0,1].')
+
     if not self.beta >= 0.:
       raise ValueError('Invalid "beta" passed. "beta" must be a float greater or equal that 0.')
-
-    if not isinstance(self.W, int):
-      raise TypeError('Invalid "W" passed. "W" must be an int.')
-
-    if not self.W >= 1:
-      raise ValueError('Invalid "W" passed. "W" must be greater or equal that 1.')
 
     if not isinstance(self.T, int):
       raise TypeError('Invalid "T" passed. "T" must be an int.')
@@ -92,8 +89,9 @@ class Network:
     self.sigma = self.state_init.get(size=self.n)
     self.C = self.connectivity_init.get(shape=(self.n,self.n))
 
-    self.history = deque(maxlen=self.W)
-    self.history.append(self.sigma)
+    self.avgActivity = np.empty(self.n, dtype=np.float32)
+    self.avgActivity = self.sigma
+    self.epsilon = 1e-9
 
     self.linksPlus = np.sum(self.C == 1)
     self.linksMinus = np.sum(self.C == -1)
@@ -113,7 +111,7 @@ class Network:
 
   @staticmethod
   @njit
-  def _compute_new_state (n, sigma, C, beta, numActive):
+  def _compute_new_state (n, sigma, C, alpha, beta, avgActivity, numActive):
 
     newSigma = np.zeros(n, dtype=np.int8)
 
@@ -127,7 +125,9 @@ class Network:
         newSigma[i] = 1
         numActive += 1
 
-    return newSigma, numActive
+    avgActivity = newSigma * (1. - alpha) + avgActivity * alpha
+
+    return newSigma, avgActivity, numActive
 
 
   def _evolve_state (self):
@@ -136,19 +136,17 @@ class Network:
 
     for _ in range(self.T):
 
-      self.sigma, numActive = self._compute_new_state(n=self.n, sigma=self.sigma, C=self.C,
-                                                      beta=self.beta, numActive=numActive)
-      self.history.append(self.sigma)
+      self.sigma, self.avgActivity, numActive = self._compute_new_state(
+        n           = self.n,
+        sigma       = self.sigma,
+        C           = self.C,
+        alpha       = self.alpha,
+        beta        = self.beta,
+        avgActivity = self.avgActivity,
+        numActive   = numActive
+      )
 
     return numActive
-
-
-  def _compute_average_activity (self, i):
-
-    history = np.array(self.history)
-    A = np.mean(history[:,i])
-
-    return A
 
 
   def _add_random_linkPlus (self, i):
@@ -188,12 +186,12 @@ class Network:
   def _evolve_connectivity (self):
 
     i = np.random.randint(low=0, high=self.n)
-    A = self._compute_average_activity(i=i)
+    A = self.avgActivity[i]
 
-    if A == 0.:
+    if A < self.epsilon:
       self._add_random_linkPlus(i)
 
-    elif A == 1.:
+    elif A > (1. - self.epsilon):
       self._add_random_linkMinus(i)
 
     else:
