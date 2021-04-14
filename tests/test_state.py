@@ -1,9 +1,9 @@
 from hypothesis import strategies as st
 from hypothesis import given
 
-from socmodel.state import ZerosState
-from socmodel.state import OnesState
-from socmodel.state import UniformState
+from socmodel.source.state import ZerosState
+from socmodel.source.state import OnesState
+from socmodel.source.state import UniformState
 
 
 @given(size = st.integers(min_value=1, max_value=1e6),)

@@ -3,9 +3,9 @@ import numpy as np
 from hypothesis import strategies as st
 from hypothesis import given
 
-from socmodel.connectivity import ZerosConnectivity
-from socmodel.connectivity import OnesConnectivity
-from socmodel.connectivity import RandomConnectivity
+from socmodel.source.connectivity import ZerosConnectivity
+from socmodel.source.connectivity import OnesConnectivity
+from socmodel.source.connectivity import RandomConnectivity
 
 
 @given(size = st.integers(min_value=1, max_value=1e3),)

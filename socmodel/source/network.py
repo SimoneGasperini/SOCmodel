@@ -4,8 +4,8 @@ import numpy as np
 from numba import njit, stencil
 from tqdm import trange
 
-from socmodel.state import ZerosState
-from socmodel.connectivity import ZerosConnectivity
+from socmodel.source.state import ZerosState
+from socmodel.source.connectivity import ZerosConnectivity
 
 
 class Network:
@@ -198,13 +198,13 @@ class Network:
       self._remove_random_link(i)
 
 
-  def run (self, evolution_steps):
+  def run (self, evolution_steps, progressbar=True):
 
     avgActive = np.empty(evolution_steps, dtype=np.float32)
     degPlus = np.empty(evolution_steps, dtype=np.float32)
     degMinus = np.empty(evolution_steps, dtype=np.float32)
 
-    for i in trange(evolution_steps, desc='Simulation: '):
+    for i in trange(evolution_steps, desc='Simulation: ', disable=(not progressbar)):
 
       avgActive[i] = self._evolve_state()
       self._evolve_connectivity()

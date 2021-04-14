@@ -3,15 +3,15 @@ import numpy as np
 from hypothesis import strategies as st
 from hypothesis import given, settings
 
-from socmodel.state import ZerosState
-from socmodel.state import OnesState
-from socmodel.state import UniformState
+from socmodel.source.state import ZerosState
+from socmodel.source.state import OnesState
+from socmodel.source.state import UniformState
 
-from socmodel.connectivity import ZerosConnectivity
-from socmodel.connectivity import OnesConnectivity
-from socmodel.connectivity import RandomConnectivity
+from socmodel.source.connectivity import ZerosConnectivity
+from socmodel.source.connectivity import OnesConnectivity
+from socmodel.source.connectivity import RandomConnectivity
 
-from socmodel.network import Network
+from socmodel.source.network import Network
 
 
 state_initializers = [ZerosState, OnesState, UniformState]
