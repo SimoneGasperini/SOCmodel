@@ -1,11 +1,10 @@
-from random import random
-
 import numpy as np
-from numba import njit, stencil
 from tqdm import trange
 
 from socmodel.source.state import ZerosState
 from socmodel.source.connectivity import ZerosConnectivity
+from socmodel.source.numbafunc import compute_new_state
+from socmodel.source.numbafunc import compute_branching_parameter
 
 
 class Network:
@@ -97,37 +96,16 @@ class Network:
     self.linksMinus = np.sum(self.C == -1)
 
 
-  @staticmethod
-  @stencil
-  def _compute_branching_parameter (arr):
+  def _compute_new_state (self, numActive):
 
-    par = 0.
-
-    if arr[-1] != 0:
-      par = arr[0] / arr[-1]
-
-    return par
-
-
-  @staticmethod
-  @njit
-  def _compute_new_state (n, sigma, C, alpha, beta, avgActivity, numActive):
-
-    newSigma = np.zeros(n, dtype=np.int8)
-
-    for i in range(n):
-
-      signal = 0
-      for j in range(n):
-        signal += C[i,j] * sigma[j]
-
-      if random() < 1./ (1. + np.exp(-2.*beta * (signal-0.5))):
-        newSigma[i] = 1
-        numActive += 1
-
-    avgActivity = newSigma * (1. - alpha) + avgActivity * alpha
-
-    return newSigma, avgActivity, numActive
+    return compute_new_state(
+      n           = self.n,
+      sigma       = self.sigma,
+      C           = self.C,
+      alpha       = self.alpha,
+      beta        = self.beta,
+      avgActivity = self.avgActivity,
+      numActive   = numActive)
 
 
   def _evolve_state (self):
@@ -136,15 +114,7 @@ class Network:
 
     for _ in range(self.T):
 
-      self.sigma, self.avgActivity, numActive = self._compute_new_state(
-        n           = self.n,
-        sigma       = self.sigma,
-        C           = self.C,
-        alpha       = self.alpha,
-        beta        = self.beta,
-        avgActivity = self.avgActivity,
-        numActive   = numActive
-      )
+      self.sigma, self.avgActivity, numActive = self._compute_new_state(numActive)
 
     return numActive
 
@@ -214,6 +184,6 @@ class Network:
     avgActive /= (self.T * self.n)
     degPlus /= self.n
     degMinus /= self.n
-    branchPar = self._compute_branching_parameter(avgActive)
+    branchPar = compute_branching_parameter(avgActive)
 
     return degPlus, degMinus, branchPar, avgActive
