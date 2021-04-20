@@ -59,7 +59,7 @@ def plot_degree_convergence (savefig=False):
     socmodel = Network(n=600, alpha=0.2, beta=10., T=10,
                        C_init=RandomConnectivity(pPlus=c['prob'], pMinus=c['prob']))
     print(socmodel, flush=True)
-    Kplus, Kminus, _, _ = socmodel.run(evolution_steps=20000)
+    Kplus, Kminus, _ = socmodel.run(evolution_steps=20000)
 
     ax1.plot(Kplus, color=c['col'])
     ax2.plot(Kminus, color=c['col'])
@@ -95,13 +95,11 @@ def plot_degree_vs_beta (savefig=False):
     socmodel = Network(n=400, alpha=0.2, beta=betas[i], T=10,
                        sigma_init=RandomState(),
                        C_init=RandomConnectivity(pPlus=0.005, pMinus=0.005))
-    Kplus, Kminus, _, _ = socmodel.run(evolution_steps=10000, progressbar=False)
+    Kplus, Kminus, _ = socmodel.run(evolution_steps=10000, progressbar=False)
     mean_Kplus[i] = np.mean(Kplus[-1000:])
     std_Kplus[i] = np.std(Kplus[-1000:])
     mean_Kminus[i] = np.mean(Kminus[-1000:])
     std_Kminus[i] = np.std(Kminus[-1000:])
-
-  print(socmodel, flush=True)
 
   fig1, ax1 = plt.subplots(figsize=(8,6))
   fig2, ax2 = plt.subplots(figsize=(8,6))

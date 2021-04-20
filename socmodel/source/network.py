@@ -63,7 +63,7 @@ class Network:
 
   def _check_parameters (self):
 
-    if not isinstance(self.n, int):
+    if not np.issubdtype(type(self.n), int):
       raise TypeError('Invalid "n" passed. "n" must be an int.')
 
     if not self.n >= 1:
@@ -75,7 +75,7 @@ class Network:
     if not self.beta >= 0.:
       raise ValueError('Invalid "beta" passed. "beta" must be a float greater or equal that 0.')
 
-    if not isinstance(self.T, int):
+    if not np.issubdtype(type(self.T), int):
       raise TypeError('Invalid "T" passed. "T" must be an int.')
 
     if not self.T >= 1:
@@ -176,7 +176,7 @@ class Network:
     degPlus = np.empty(evolution_steps, dtype=np.float32)
     degMinus = np.empty(evolution_steps, dtype=np.float32)
 
-    for i in trange(evolution_steps, desc='Simulation: ', disable=(not progressbar)):
+    for i in trange(evolution_steps, desc='Simulation: ', disable=(not progressbar), ncols=100):
 
       avgActive[i] = self._evolve_state()
       self._evolve_connectivity()
@@ -188,4 +188,4 @@ class Network:
     degMinus /= self.n
     branchPar = compute_branching_par(avgActive)
 
-    return degPlus, degMinus, branchPar, avgActive
+    return degPlus, degMinus, branchPar
