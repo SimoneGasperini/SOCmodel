@@ -4,7 +4,7 @@ from tqdm import trange
 from socmodel.source.state import ZerosState
 from socmodel.source.connectivity import ZerosConnectivity
 from socmodel.source.numbafunc import compute_new_state
-from socmodel.source.numbafunc import compute_branching_parameter
+from socmodel.source.numbafunc import compute_branching_par
 
 
 class Network:
@@ -30,23 +30,22 @@ class Network:
       in the network topology (connectivity evolution).
       It must be greater of equal than 1
 
-    state_init : BaseState, default=ZerosState()
+    sigma_init : BaseState, default=ZerosState()
       State vector initializer
 
-    connectivity_init : BaseConnectivity, default=ZerosConnectivity()
+    C_init : BaseConnectivity, default=ZerosConnectivity()
       Connectivity matrix initializer
   '''
 
   def __init__ (self, n, alpha, beta, T,
-                state_init=ZerosState(),
-                connectivity_init=ZerosConnectivity()):
+                sigma_init=ZerosState(), C_init=ZerosConnectivity()):
 
     self.n                 = n
     self.alpha             = alpha
     self.beta              = beta
     self.T                 = T
-    self.state_init        = state_init
-    self.connectivity_init = connectivity_init
+    self.sigma_init        = sigma_init
+    self.C_init            = C_init
 
     self._check_parameters()
     self._set_initial_conditions()
@@ -85,8 +84,8 @@ class Network:
 
   def _set_initial_conditions (self):
 
-    self.sigma = self.state_init.get(size=self.n)
-    self.C = self.connectivity_init.get(shape=(self.n,self.n))
+    self.sigma = self.sigma_init.get(size=self.n)
+    self.C = self.C_init.get(shape=(self.n,self.n))
 
     self.avgActivity = np.empty(self.n, dtype=np.float32)
     self.avgActivity = self.sigma
@@ -99,13 +98,16 @@ class Network:
   def _compute_new_state (self, numActive):
 
     return compute_new_state(
-      n           = self.n,
-      sigma       = self.sigma,
-      C           = self.C,
-      alpha       = self.alpha,
-      beta        = self.beta,
-      avgActivity = self.avgActivity,
-      numActive   = numActive)
+      n         = self.n,
+      sigma     = self.sigma,
+      C         = self.C,
+      beta      = self.beta,
+      numActive = numActive)
+
+
+  def _update_average_activity (self):
+
+    self.avgActivity = self.sigma * (1.-self.alpha) + self.avgActivity * self.alpha
 
 
   def _evolve_state (self):
@@ -113,8 +115,8 @@ class Network:
     numActive = 0
 
     for _ in range(self.T):
-
-      self.sigma, self.avgActivity, numActive = self._compute_new_state(numActive)
+      self.sigma, numActive = self._compute_new_state(numActive)
+      self._update_average_activity()
 
     return numActive
 
@@ -184,6 +186,6 @@ class Network:
     avgActive /= (self.T * self.n)
     degPlus /= self.n
     degMinus /= self.n
-    branchPar = compute_branching_parameter(avgActive)
+    branchPar = compute_branching_par(avgActive)
 
     return degPlus, degMinus, branchPar, avgActive

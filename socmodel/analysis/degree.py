@@ -47,17 +47,17 @@ def plot_degree_distribution (savefig=False):
 
 def plot_degree_convergence (savefig=False):
 
-  Cinit = [{'prob':0., 'col':'tab:blue'},
-           {'prob':0.003, 'col':'tab:orange'},
-           {'prob':0.006, 'col':'tab:green'}]
+  connectivity = [{'prob':0., 'col':'tab:blue'},
+                  {'prob':0.003, 'col':'tab:orange'},
+                  {'prob':0.006, 'col':'tab:green'}]
 
   fig1, ax1 = plt.subplots(figsize=(8,6))
   fig2, ax2 = plt.subplots(figsize=(8,6))
 
-  for c in Cinit:
+  for c in connectivity:
 
     socmodel = Network(n=600, alpha=0.2, beta=10., T=10,
-                       connectivity_init=RandomConnectivity(pPlus=c['prob'], pMinus=c['prob']))
+                       C_init=RandomConnectivity(pPlus=c['prob'], pMinus=c['prob']))
     print(socmodel, flush=True)
     Kplus, Kminus, _, _ = socmodel.run(evolution_steps=20000)
 
@@ -93,8 +93,8 @@ def plot_degree_vs_beta (savefig=False):
   for i in trange(betas.size, desc='Running simulations'):
 
     socmodel = Network(n=400, alpha=0.2, beta=betas[i], T=10,
-                       state_init=UniformState(),
-                       connectivity_init=RandomConnectivity(pPlus=0.005, pMinus=0.005))
+                       sigma_init=UniformState(),
+                       C_init=RandomConnectivity(pPlus=0.005, pMinus=0.005))
     Kplus, Kminus, _, _ = socmodel.run(evolution_steps=10000, progressbar=False)
     mean_Kplus[i] = np.mean(Kplus[-1000:])
     std_Kplus[i] = np.std(Kplus[-1000:])
