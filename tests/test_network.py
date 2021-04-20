@@ -5,7 +5,7 @@ from hypothesis import given, settings
 
 from socmodel.source.state import ZerosState
 from socmodel.source.state import OnesState
-from socmodel.source.state import UniformState
+from socmodel.source.state import RandomState
 
 from socmodel.source.connectivity import ZerosConnectivity
 from socmodel.source.connectivity import OnesConnectivity
@@ -14,7 +14,7 @@ from socmodel.source.connectivity import RandomConnectivity
 from socmodel.source.network import Network
 
 
-sigma_initializers = [ZerosState, OnesState, UniformState]
+sigma_initializers = [ZerosState, OnesState, RandomState]
 C_initializers = [ZerosConnectivity, OnesConnectivity, RandomConnectivity]
 
 

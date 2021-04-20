@@ -75,8 +75,8 @@ class OnesConnectivity (BaseConnectivity):
 class RandomConnectivity (BaseConnectivity):
 
   '''
-  Initialize the connectivity matrix uniformly with 1s, -1s (or 0s) according
-  to their link probabilities.
+  Initialize randomly the connectivity matrix with 1s, -1s (or 0s) according
+  to their link creation probabilities.
   It corresponds to the generation of a directed random network with no loops.
   '''
 

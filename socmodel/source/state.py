@@ -68,16 +68,17 @@ class OnesState (BaseState):
     return np.ones(shape=size, dtype=np.int8)
 
 
-class UniformState (BaseState):
+class RandomState (BaseState):
 
   '''
-  Initialize the state vector uniformly with 0s or 1s. It corresponds to the
-  generation of a state with the same probability for each neuron to be in a
-  resting or a firing state.
+  Initialize randomly the state vector with 1s (or 0s) according to the given
+  probability. It corresponds to the generation of a state with some of the
+  neurons in a firing state and the remaining neurons in a resting state.
   '''
 
-  def __init__ (self):
-    super(UniformState, self).__init__()
+  def __init__ (self, p=0.5):
+    self.p = p
+    super(RandomState, self).__init__()
 
   def get (self, size):
-    return np.random.randint(low=0, high=2, size=size).astype(np.int8)
+    return np.where(np.random.rand(size) < self.p, 1, 0).astype(np.int8)

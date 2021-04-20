@@ -5,7 +5,7 @@ from tqdm import trange
 from scipy.special import factorial
 from scipy.optimize import curve_fit
 
-from socmodel.source.state import UniformState
+from socmodel.source.state import RandomState
 from socmodel.source.connectivity import RandomConnectivity
 from socmodel.source.network import Network
 
@@ -93,7 +93,7 @@ def plot_degree_vs_beta (savefig=False):
   for i in trange(betas.size, desc='Running simulations'):
 
     socmodel = Network(n=400, alpha=0.2, beta=betas[i], T=10,
-                       sigma_init=UniformState(),
+                       sigma_init=RandomState(),
                        C_init=RandomConnectivity(pPlus=0.005, pMinus=0.005))
     Kplus, Kminus, _, _ = socmodel.run(evolution_steps=10000, progressbar=False)
     mean_Kplus[i] = np.mean(Kplus[-1000:])
