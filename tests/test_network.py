@@ -61,18 +61,20 @@ def test_state_evolution (n, alpha, beta, T, sigma_init, C_init, steps):
        T          = st.integers(min_value=1, max_value=10),
        sigma_init = st.sampled_from(sigma_initializers),
        C_init     = st.sampled_from(C_initializers),
-       steps      = st.integers(min_value=0, max_value=100),)
+       steps      = st.integers(min_value=0, max_value=50),)
 @settings(deadline=None)
 def test_connectivity_evolution (n, alpha, beta, T, sigma_init, C_init, steps):
 
   net = Network(n=n, alpha=alpha, beta=beta, T=T,
                 sigma_init=sigma_init(), C_init=C_init())
+  net.C = net.C.tocsr()
 
   for _ in range(steps):
 
     net._evolve_connectivity()
 
-    assert ((net.C == -1) | (net.C == 0) | (net.C == 1)).all()
-    assert (net.C[np.eye(n, dtype=bool)] == 0).all()
-    assert np.sum(net.C == 1) == net.linksPlus
-    assert np.sum(net.C == -1) == net.linksMinus
+    C = net.C.toarray()
+    assert ((C == -1) | (C == 0) | (C == 1)).all()
+    assert (C[np.eye(n, dtype=bool)] == 0).all()
+    assert np.sum(C == 1) == net.linksPlus
+    assert np.sum(C == -1) == net.linksMinus

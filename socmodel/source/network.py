@@ -1,10 +1,16 @@
 import numpy as np
+from scipy import sparse
 from tqdm import trange
 
 from socmodel.source.state import ZerosState
 from socmodel.source.connectivity import ZerosConnectivity
-from socmodel.source.numbafunc import compute_new_state
+from socmodel.source.numbafunc import compute_signal
+from socmodel.source.numbafunc import update_state
+from socmodel.source.numbafunc import update_average_activity
 from socmodel.source.numbafunc import compute_branching_par
+
+import warnings
+warnings.simplefilter('ignore')
 
 
 class Network:
@@ -40,12 +46,12 @@ class Network:
   def __init__ (self, n, alpha, beta, T,
                 sigma_init=ZerosState(), C_init=ZerosConnectivity()):
 
-    self.n                 = n
-    self.alpha             = alpha
-    self.beta              = beta
-    self.T                 = T
-    self.sigma_init        = sigma_init
-    self.C_init            = C_init
+    self.n          = n
+    self.alpha      = alpha
+    self.beta       = beta
+    self.T          = T
+    self.sigma_init = sigma_init
+    self.C_init     = C_init
 
     self._check_parameters()
     self._set_initial_conditions()
@@ -85,7 +91,7 @@ class Network:
   def _set_initial_conditions (self):
 
     self.sigma = self.sigma_init.get(size=self.n)
-    self.C = self.C_init.get(shape=(self.n,self.n))
+    self.C = sparse.coo_matrix(self.C_init.get(shape=(self.n,self.n)))
 
     self.avgActivity = np.empty(self.n, dtype=np.float32)
     self.avgActivity = self.sigma
@@ -95,19 +101,18 @@ class Network:
     self.linksMinus = np.sum(self.C == -1)
 
 
-  def _compute_new_state (self, numActive):
+  def _update_state (self, numActive):
 
-    return compute_new_state(
-      n         = self.n,
-      sigma     = self.sigma,
-      C         = self.C,
-      beta      = self.beta,
-      numActive = numActive)
+    signal = compute_signal(n=self.n, sigma=self.sigma,
+                            C=self.C.data, i=self.C.row, j=self.C.col)
+
+    return update_state(n=self.n, beta=self.beta, signal=signal, numActive=numActive)
 
 
   def _update_average_activity (self):
 
-    self.avgActivity = self.sigma * (1.-self.alpha) + self.avgActivity * self.alpha
+    return update_average_activity(n=self.n, sigma=self.sigma, alpha=self.alpha,
+                                   avgActivity=self.avgActivity)
 
 
   def _evolve_state (self):
@@ -115,15 +120,15 @@ class Network:
     numActive = 0
 
     for _ in range(self.T):
-      self.sigma, numActive = self._compute_new_state(numActive)
-      self._update_average_activity()
+      self.sigma, numActive = self._update_state(numActive=numActive)
+      self.avgActivity = self._update_average_activity()
 
     return numActive
 
 
   def _add_random_linkPlus (self, i):
 
-    indices = np.where(self.C[i] == 0)[0]
+    indices = np.where(self.C[i].toarray()[0] == 0)[0]
     indices = indices[indices != i]
 
     if indices.size:
@@ -134,7 +139,7 @@ class Network:
 
   def _add_random_linkMinus (self, i):
 
-    indices = np.where(self.C[i] == 0)[0]
+    indices = np.where(self.C[i].toarray()[0] == 0)[0]
     indices = indices[indices != i]
 
     if indices.size:
@@ -145,7 +150,7 @@ class Network:
 
   def _remove_random_link (self, i):
 
-    indices = np.where(self.C[i] != 0)[0]
+    indices = self.C[i].nonzero()[1]
 
     if indices.size:
       j = np.random.choice(indices)
@@ -179,7 +184,9 @@ class Network:
     for i in trange(evolution_steps, desc='Simulation: ', disable=(not progressbar), ncols=100):
 
       avgActive[i] = self._evolve_state()
+      self.C = self.C.tocsr()
       self._evolve_connectivity()
+      self.C = self.C.tocoo()
       degPlus[i] = self.linksPlus
       degMinus[i] = self.linksMinus
 
