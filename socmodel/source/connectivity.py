@@ -7,38 +7,6 @@ class BaseConnectivity ():
   Base class for connectivity matrix initialization.
   '''
 
-  def get (self, size):
-    '''
-    Initialize the connectivity matrix according to the specialization.
-
-    Parameters
-    ----------
-      shape : tuple
-        Connectivity matrix shape
-
-    Returns
-    -------
-      connectivity : array-like 2D
-        Connectivity matrix with the given shape
-    '''
-
-    raise NotImplementedError
-
-
-  def __repr__ (self):
-
-    class_name = self.__class__.__qualname__
-    try:
-      params = super(type(self), self).__init__.__code__.co_varnames
-    except AttributeError:
-      params = self.__init__.__code__.co_varnames
-
-    params = list(self.__init__.__code__.co_varnames)
-    params.remove('self')
-    args = ', '.join([f'{key}={getattr(self, key)}' for key in params])
-
-    return f'{class_name}({args})'
-
 
 class ZerosConnectivity (BaseConnectivity):
 

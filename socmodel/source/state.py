@@ -7,38 +7,6 @@ class BaseState ():
   Base class for state vector initialization.
   '''
 
-  def get (self, size):
-    '''
-    Initialize the state vector according to the specialization.
-
-    Parameters
-    ----------
-      size : int
-        State vector size
-
-    Returns
-    -------
-      state : array-like
-        State vector with the given size
-    '''
-
-    raise NotImplementedError
-
-
-  def __repr__ (self):
-
-    class_name = self.__class__.__qualname__
-    try:
-      params = super(type(self), self).__init__.__code__.co_varnames
-    except AttributeError:
-      params = self.__init__.__code__.co_varnames
-
-    params = list(self.__init__.__code__.co_varnames)
-    params.remove('self')
-    args = ', '.join([f'{key}={getattr(self, key)}' for key in params])
-
-    return f'{class_name}({args})'
-
 
 class ZerosState (BaseState):
 

@@ -27,8 +27,10 @@ C_initializers = [ZerosConnectivity, OnesConnectivity, RandomConnectivity]
        C_init     = st.sampled_from(C_initializers),)
 def test_constructor (n, alpha, beta, tau, sigma_init, C_init):
 
-  Network(n=n, alpha=alpha, beta=beta, tau=tau,
-          sigma_init=sigma_init(), C_init=C_init())
+  net = Network(n=n, alpha=alpha, beta=beta, tau=tau,
+                sigma_init=sigma_init(), C_init=C_init())
+
+  print(net)
 
 
 
@@ -78,3 +80,23 @@ def test_connectivity_evolution (n, alpha, beta, tau, sigma_init, C_init, steps)
     assert (C[np.eye(n, dtype=bool)] == 0).all()
     assert np.sum(C == 1) == net.linksPlus
     assert np.sum(C == -1) == net.linksMinus
+
+
+
+@given(sigma_init = st.sampled_from(sigma_initializers),
+       C_init     = st.sampled_from(C_initializers),)
+@settings(deadline=None, max_examples=30)
+def test_simulation (sigma_init, C_init):
+
+  net = Network(n=100, alpha=0.2, beta=10., tau=10,
+                sigma_init=sigma_init(), C_init=C_init())
+
+  C = net.C.toarray()
+  assert ((net.sigma == 0) | (net.sigma == 1)).all()
+  assert ((C == -1) | (C == 0) | (C == 1)).all()
+
+  net.run(evolution_steps=1000)
+
+  C = net.C.toarray()
+  assert ((net.sigma == 0) | (net.sigma == 1)).all()
+  assert ((C == -1) | (C == 0) | (C == 1)).all()
