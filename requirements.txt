@@ -5,3 +5,5 @@ tqdm
 
 pytest
 hypothesis
+codecov
+pytest-cov
