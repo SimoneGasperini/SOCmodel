@@ -22,12 +22,12 @@ C_initializers = [ZerosConnectivity, OnesConnectivity, RandomConnectivity]
 @given(n          = st.integers(min_value=1, max_value=1000),
        alpha      = st.floats(min_value=0., max_value=1.),
        beta       = st.floats(min_value=0.),
-       T          = st.integers(min_value=1),
+       tau        = st.integers(min_value=1),
        sigma_init = st.sampled_from(sigma_initializers),
        C_init     = st.sampled_from(C_initializers),)
-def test_constructor (n, alpha, beta, T, sigma_init, C_init):
+def test_constructor (n, alpha, beta, tau, sigma_init, C_init):
 
-  Network(n=n, alpha=alpha, beta=beta, T=T,
+  Network(n=n, alpha=alpha, beta=beta, tau=tau,
           sigma_init=sigma_init(), C_init=C_init())
 
 
@@ -35,14 +35,14 @@ def test_constructor (n, alpha, beta, T, sigma_init, C_init):
 @given(n          = st.integers(min_value=1, max_value=1000),
        alpha      = st.floats(min_value=0., max_value=1.),
        beta       = st.floats(min_value=0.),
-       T          = st.integers(min_value=1, max_value=10),
+       tau        = st.integers(min_value=1, max_value=10),
        sigma_init = st.sampled_from(sigma_initializers),
        C_init     = st.sampled_from(C_initializers),
        steps      = st.integers(min_value=0, max_value=100),)
 @settings(deadline=None)
-def test_state_evolution (n, alpha, beta, T, sigma_init, C_init, steps):
+def test_state_evolution (n, alpha, beta, tau, sigma_init, C_init, steps):
 
-  net = Network(n=n, alpha=alpha, beta=beta, T=T,
+  net = Network(n=n, alpha=alpha, beta=beta, tau=tau,
                 sigma_init=sigma_init(), C_init=C_init())
 
   for _ in range(steps):
@@ -51,21 +51,21 @@ def test_state_evolution (n, alpha, beta, T, sigma_init, C_init, steps):
 
     assert ((net.sigma == 0) | (net.sigma == 1)).all()
     assert ((net.avgActivity >= 0.) & (net.avgActivity <= 1.)).all()
-    assert (numActive / net.T) <= net.n
+    assert (numActive / net.tau) <= net.n
 
 
 
 @given(n          = st.integers(min_value=1, max_value=1000),
        alpha      = st.floats(min_value=0., max_value=1.),
        beta       = st.floats(min_value=0.),
-       T          = st.integers(min_value=1, max_value=10),
+       tau        = st.integers(min_value=1, max_value=10),
        sigma_init = st.sampled_from(sigma_initializers),
        C_init     = st.sampled_from(C_initializers),
        steps      = st.integers(min_value=0, max_value=50),)
 @settings(deadline=None)
-def test_connectivity_evolution (n, alpha, beta, T, sigma_init, C_init, steps):
+def test_connectivity_evolution (n, alpha, beta, tau, sigma_init, C_init, steps):
 
-  net = Network(n=n, alpha=alpha, beta=beta, T=T,
+  net = Network(n=n, alpha=alpha, beta=beta, tau=tau,
                 sigma_init=sigma_init(), C_init=C_init())
   net.C = net.C.tocsr()
 

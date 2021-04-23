@@ -13,7 +13,7 @@ from socmodel.source.network import Network
 
 def plot_degree_distribution (savefig=False):
 
-  socmodel = Network(n=1000, alpha=0.2, beta=10., T=10)
+  socmodel = Network(n=1000, alpha=0.2, beta=10., tau=10)
   print(socmodel, flush=True)
   socmodel.run(evolution_steps=20000)
 
@@ -56,7 +56,7 @@ def plot_degree_convergence (savefig=False):
 
   for c in connectivity:
 
-    socmodel = Network(n=600, alpha=0.2, beta=10., T=10,
+    socmodel = Network(n=600, alpha=0.2, beta=10., tau=10,
                        C_init=RandomConnectivity(pPlus=c['prob'], pMinus=c['prob']))
     print(socmodel, flush=True)
     Kplus, Kminus, _ = socmodel.run(evolution_steps=20000)
@@ -92,7 +92,7 @@ def plot_degree_vs_beta (savefig=False):
 
   for i in trange(betas.size, desc='Running simulations'):
 
-    socmodel = Network(n=400, alpha=0.2, beta=betas[i], T=10,
+    socmodel = Network(n=400, alpha=0.2, beta=betas[i], tau=10,
                        sigma_init=RandomState(),
                        C_init=RandomConnectivity(pPlus=0.005, pMinus=0.005))
     Kplus, Kminus, _ = socmodel.run(evolution_steps=10000, progressbar=False)

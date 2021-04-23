@@ -30,7 +30,7 @@ class Network:
       Inverse temperature of the model.
       It must be greater or equal than 0
 
-    T : int
+    tau : int
       Number of steps for the evolution time scale: it represents the time scale
       separation between fast neurons dynamics (state evolution) and slow change
       in the network topology (connectivity evolution).
@@ -43,13 +43,13 @@ class Network:
       Connectivity matrix initializer
   '''
 
-  def __init__ (self, n, alpha, beta, T,
+  def __init__ (self, n, alpha, beta, tau,
                 sigma_init=ZerosState(), C_init=ZerosConnectivity()):
 
     self.n          = n
     self.alpha      = alpha
     self.beta       = beta
-    self.T          = T
+    self.tau        = tau
     self.sigma_init = sigma_init
     self.C_init     = C_init
 
@@ -81,11 +81,11 @@ class Network:
     if not self.beta >= 0.:
       raise ValueError('Invalid "beta" passed. "beta" must be a float greater or equal that 0.')
 
-    if not np.issubdtype(type(self.T), int):
-      raise TypeError('Invalid "T" passed. "T" must be an int.')
+    if not np.issubdtype(type(self.tau), int):
+      raise TypeError('Invalid "tau" passed. "tau" must be an int.')
 
-    if not self.T >= 1:
-      raise ValueError('Invalid "T" passed. "T" must be greater or equal that 1.')
+    if not self.tau >= 1:
+      raise ValueError('Invalid "tau" passed. "tau" must be greater or equal that 1.')
 
 
   def _set_initial_conditions (self):
@@ -119,7 +119,7 @@ class Network:
 
     numActive = 0
 
-    for _ in range(self.T):
+    for _ in range(self.tau):
       self.sigma, numActive = self._update_state(numActive=numActive)
       self.avgActivity = self._update_average_activity()
 
@@ -190,7 +190,7 @@ class Network:
       degPlus[i] = self.linksPlus
       degMinus[i] = self.linksMinus
 
-    avgActive /= (self.T * self.n)
+    avgActive /= (self.tau * self.n)
     degPlus /= self.n
     degMinus /= self.n
     branchPar = compute_branching_par(avgActive)
