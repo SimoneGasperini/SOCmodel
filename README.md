@@ -19,7 +19,7 @@ python setup.py install
 
 
 ## Example
-For an example about how to create an instance of the `SOC model` and run a simple simulation,see the `Jupyter Notebook` [here](https://github.com/SimoneGasperini/SOCmodel/blob/master/socmodel/example.ipynb)
+For an example about how to create an instance of the model and run a simulation, see the `Jupyter Notebook` [here](https://github.com/SimoneGasperini/SOCmodel/blob/master/socmodel/example.ipynb)
 
 
 ## Authors
