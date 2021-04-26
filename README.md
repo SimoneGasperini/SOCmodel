@@ -3,6 +3,9 @@
 [![codecov](https://codecov.io/gh/SimoneGasperini/SOCmodel/branch/master/graph/badge.svg?token=8tovOTCUjf)](https://app.codecov.io/gh/SimoneGasperini/SOCmodel/)
 
 
+### PDF report 🠲 [Self_Organized_Criticality.pdf](https://github.com/SimoneGasperini/SOCmodel/blob/master/Self_Organized_Criticality.pdf)
+
+
 ## Installation
 First, clone the git repository and change directory:
 
