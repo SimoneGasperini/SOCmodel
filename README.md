@@ -1,5 +1,5 @@
 # Self-Organized Critical neural networks model
-[![build](https://travis-ci.com/SimoneGasperini/SOCmodel.svg?)](https://travis-ci.com/)
+[![build](https://app.travis-ci.com/SimoneGasperini/SOCmodel.svg?branch=master)](https://travis-ci.com/)
 [![codecov](https://codecov.io/gh/SimoneGasperini/SOCmodel/branch/master/graph/badge.svg?token=8tovOTCUjf)](https://app.codecov.io/gh/SimoneGasperini/SOCmodel/)
 
 
